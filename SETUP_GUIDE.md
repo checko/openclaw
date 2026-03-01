@@ -241,13 +241,35 @@ pnpm openclaw agent --agent main --message "Hello, what can you do ?"
 
 **Expected output**: The agent should respond with a list of its capabilities.
 
-### Step 11: Access Control UI (Optional)
+### Step 11: Access Control UI
 
-Open your browser and navigate to:
+To access the Web UI from another host securely without exposing the gateway to the network:
 
+#### 11a. Create an SSH Tunnel
+
+On your **local machine** (where you want to use the browser), run:
+
+```bash
+ssh -N -L 18789:127.0.0.1:18789 YOUR_USERNAME@YOUR_OPENCLAW_IP
 ```
-http://127.0.0.1:18789/
+
+#### 11b. Find your Gateway Token
+
+The Control UI requires a token for authorization. You can find it in your configuration file on the server:
+
+```bash
+cat ~/.openclaw/openclaw.json | grep -A 5 "auth"
 ```
+
+Look for the `"token"` value.
+
+#### 11c. Open the Dashboard
+
+Navigate to the following URL in your browser (replacing `YOUR_TOKEN` with the actual token):
+
+`http://127.0.0.1:18789/?token=YOUR_TOKEN`
+
+Once visited, the token is saved in your browser's local storage.
 
 ---
 
