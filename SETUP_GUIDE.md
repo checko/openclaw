@@ -57,9 +57,12 @@ pnpm install
 ```bash
 # Build the TypeScript project
 pnpm build
+
+# Build the Control UI assets (required for systemd / production)
+pnpm ui:build
 ```
 
-**Expected output**: Generates `dist/` directory with compiled JavaScript files (300+ output files).
+**Expected output**: Generates `dist/` directory with compiled JavaScript files (300+ output files) and `dist/control-ui/` with static web assets.
 
 ### Step 5: Configure Custom Ollama Provider
 
