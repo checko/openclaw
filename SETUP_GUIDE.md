@@ -8,7 +8,7 @@ This document describes the complete setup sequence to deploy OpenClaw with a cu
 - **Node.js**: Version 22 or higher
 - **pnpm**: Package manager (v10.x recommended)
 - **Git**: For cloning repositories
-- **screen** or **tmux**: Terminal multiplexer for background processes
+- **systemd**: For background service management
 - **Ollama server**: Running on a reachable network endpoint
 
 ## Setup Sequence
@@ -24,6 +24,15 @@ node --version
 
 # Verify pnpm version
 pnpm --version
+
+# Create a local bin directory and a wrapper for easy CLI access
+mkdir -p ~/.local/bin
+echo "#!/bin/bash" > ~/.local/bin/openclaw
+echo "node $(pwd)/openclaw.mjs \"\$@\"" >> ~/.local/bin/openclaw
+chmod +x ~/.local/bin/openclaw
+
+# Ensure ~/.local/bin is in your PATH (add this to your .bashrc or .zshrc)
+export PATH="\$HOME/.local/bin:\$PATH"
 ```
 
 ### Step 2: Clone OpenClaw Repository
@@ -45,24 +54,17 @@ cd openclaw
 pnpm install
 ```
 
-**Expected output**: Installs 1019 dependencies including:
-
-- @mariozechner/pi-agent-core
-- @mariozechner/pi-ai
-- @mariozechner/pi-coding-agent
-- And many other dependencies
-
 ### Step 4: Build the Project
 
 ```bash
-# Build the TypeScript project
+# Build the TypeScript project (required for CLI and Gateway)
 pnpm build
 
-# Build the Control UI assets (required for systemd / production)
+# Build the Control UI assets (required for Dashboard)
 pnpm ui:build
 ```
 
-**Expected output**: Generates `dist/` directory with compiled JavaScript files (300+ output files) and `dist/control-ui/` with static web assets.
+**Note**: The CLI and Gateway require the compiled files in the `dist/` directory to function.
 
 ### Step 5: Configure Custom Ollama Provider
 
@@ -70,68 +72,35 @@ Run the onboard command with custom provider parameters:
 
 ```bash
 # Run onboard with non-interactive flags
-pnpm openclaw onboard \
-  --non-interactive \
-  --accept-risk \
-  --auth-choice custom-api-key \
-  --custom-base-url http://YOUR_OLLAMA_IP:11434/v1 \
-  --custom-model-id qwen3.5:35b \
-  --custom-compatibility openai \
-  --skip-health
+openclaw setup
+openclaw configure
 ```
 
-**Replace placeholders:**
-
-- `YOUR_OLLAMA_IP` - Your Ollama server IP address (e.g., `192.168.145.70`)
-- `qwen3.5:35b` - Your model name from Ollama (list with `ollama list` or check `curl http://YOUR_OLLAMA_IP:11434/api/tags`)
-
-**Important flags explained:**
-
-- `--non-interactive` - Run without prompts
-- `--accept-risk` - Accept terms and conditions
-- `--auth-choice custom-api-key` - Use custom API key authentication
-- `--custom-base-url` - The Ollama API endpoint (must end with `/v1`)
-- `--custom-model-id` - The model name to use
-- `--custom-compatibility` - API compatibility type (`openai` or `anthropic`)
-- `--skip-health` - Skip health check during onboarding
+Alternatively, you can manually edit the configuration at `~/.openclaw/openclaw.json`.
 
 ### Step 6: Update Configuration
 
-After running onboard, the configuration file is created at `~/.openclaw/openclaw.json`. You need to make two modifications:
+After initial setup, refine your `~/.openclaw/openclaw.json` for your specific models.
 
-#### 6a. Add API Key for Ollama Provider
+#### 6a. Configure Ollama / Qwen 3.5 (Vision & Tools)
 
-Open the configuration file:
-
-```bash
-cat ~/.openclaw/openclaw.json
-```
-
-Find the `custom-...` provider section and add the `apiKey` field, and ensure `thinkingDefault` is set to `"off"` in the agents section:
+For models like **Qwen 3.5 122B** which support vision and tools natively in Ollama:
 
 ```json
 {
   "models": {
-    "mode": "merge",
     "providers": {
-      "custom-YOUR_OLLAMA_IP-11434": {
-        "baseUrl": "http://YOUR_OLLAMA_IP:11434/v1",
-        "api": "openai-completions",
-        "apiKey": "ollama",
+      "ollama": {
+        "baseUrl": "http://YOUR_OLLAMA_IP:11434",
+        "api": "ollama",
         "models": [
           {
-            "id": "qwen3.5:35b",
-            "name": "qwen3.5:35b (Custom Provider)",
-            "reasoning": true,
-            "input": ["text"],
-            "cost": {
-              "input": 0,
-              "output": 0,
-              "cacheRead": 0,
-              "cacheWrite": 0
-            },
-            "contextWindow": 128000,
-            "maxTokens": 32768
+            "id": "qwen3.5:122b",
+            "name": "Qwen 3.5 122B",
+            "input": ["text", "image"],
+            "compat": {
+              "supportsTools": true
+            }
           }
         ]
       }
@@ -139,25 +108,21 @@ Find the `custom-...` provider section and add the `apiKey` field, and ensure `t
   },
   "agents": {
     "defaults": {
-      "thinkingDefault": "off",
-      ...
+      "model": "ollama/qwen3.5:122b"
     }
-  },
-  ...
+  }
 }
 ```
 
-**Key modifications:**
+#### 6b. Important: Model Compatibility (GPT-OSS 120B)
 
-1. **`apiKey: "ollama"`** - Required for authentication (even for unauthenticated Ollama servers)
-2. **`thinkingDefault: "off"`** - CRITICAL: Prevents "400 think value low is not supported" errors on OpenAI-compatible providers.
-3. **`reasoning: true`** - Set to `true` if your model supports chain-of-thought reasoning
-4. **`contextWindow: 128000`** - Maximum context window size (adjust based on your model)
-5. **`maxTokens: 32768`** - Maximum output tokens (adjust based on your model)
+Some models like **gpt-oss:120b** have specific API requirements:
 
-#### 6b. Configure SearXNG Search Provider (Optional)
+- **API Support**: `gpt-oss:120b` primarily supports the **OpenAI-compatible API** path.
+- **Configuration**: Use `api: "openai-completions"` and point the `baseUrl` to the `/v1` endpoint (e.g., `http://IP:11434/v1`).
+- **Native Ollama API**: Native `/api/chat` may result in plain-text JSON tool calls instead of structured execution.
 
-If you have a SearXNG instance, add the following to the `tools` section:
+#### 6c. Configure SearXNG Search Provider
 
 ```json
 {
@@ -167,7 +132,7 @@ If you have a SearXNG instance, add the following to the `tools` section:
         "enabled": true,
         "provider": "searxng",
         "searxng": {
-          "baseUrl": "http://YOUR_SEARXNG_IP:8081/Search"
+          "baseUrl": "http://YOUR_SEARXNG_IP:8081"
         }
       }
     }
@@ -175,257 +140,74 @@ If you have a SearXNG instance, add the following to the `tools` section:
 }
 ```
 
-#### 6c. Edit Configuration File
-
-If you manually edited the file, save and close it. The file location is:
-
-```
-~/.openclaw/openclaw.json
-```
-
 ### Step 7: Verify Ollama Server Connectivity
 
-Before starting the gateway, verify your Ollama server is accessible:
-
 ```bash
-# Check if Ollama server is running and list models
 curl http://YOUR_OLLAMA_IP:11434/api/tags
-
-# Expected output should list your available models
 ```
 
-**Test endpoint**: Your Ollama server should respond with a JSON array of models.
+### Step 8: Install and Start OpenClaw Gateway
 
-### Step 8: Start OpenClaw Gateway
-
-Start the gateway in a `screen` session so it continues running after you disconnect:
+Instead of using `screen`, use the built-in daemon installer for a proper `systemd --user` service:
 
 ```bash
-# Navigate to OpenClaw directory
-cd ~/test/claude/openclaw/openclaw
+# Install the gateway service
+openclaw daemon install
 
-# Create and start a screen session for the gateway
-screen -dmS openclaw pnpm openclaw gateway run
+# Start the service
+systemctl --user start openclaw-gateway.service
+
+# Enable lingering so the service runs even after logout
+loginctl enable-linger $USER
 ```
 
-**Detach from screen** (when you want to leave the session):
-
-- Press `Ctrl+A`, then `D`
-
-### Step 9: Verify Gateway is Running
+### Step 9: Verify Gateway Status
 
 ```bash
-# List screen sessions
-screen -ls
+# Check systemd status
+systemctl --user status openclaw-gateway.service
 
-# Expected output:
-# openclaw	(pid) (Date) (Detached)
+# Check gateway logs
+journalctl --user -u openclaw-gateway.service -f
 
-# Check if OpenClaw processes are running
-ps aux | grep openclaw | grep -v grep
-
-# Expected output should show `openclaw-gateway` process
-
-# Test the gateway endpoint
-curl http://127.0.0.1:18789/
-
-# Expected output: HTML page for OpenClaw Control UI
+# Check OpenClaw health
+openclaw health
 ```
 
 ### Step 10: Test OpenClaw CLI
 
-```bash
-# Check gateway status
-pnpm openclaw status
-
-# Send a test message to the agent
-pnpm openclaw agent --agent main --message "Hello, what can you do ?"
-```
-
-**Expected output**: The agent should respond with a list of its capabilities.
-
-### Step 11: Access Control UI
-
-To access the Web UI from another host securely without exposing the gateway to the network:
-
-#### 11a. Create an SSH Tunnel
-
-On your **local machine** (where you want to use the browser), run:
+Always use a `--session-id` for ad-hoc tests to maintain chat history:
 
 ```bash
-ssh -N -L 18789:127.0.0.1:18789 YOUR_USERNAME@YOUR_OPENCLAW_IP
+openclaw agent --session-id test-chat --message "Hello! What is your model name?"
 ```
-
-#### 11b. Find your Gateway Token
-
-The Control UI requires a token for authorization. You can find it in your configuration file on the server:
-
-```bash
-cat ~/.openclaw/openclaw.json | grep -A 5 "auth"
-```
-
-Look for the `"token"` value.
-
-#### 11c. Open the Dashboard
-
-Navigate to the following URL in your browser (replacing `YOUR_TOKEN` with the actual token):
-
-`http://127.0.0.1:18789/?token=YOUR_TOKEN`
-
-Once visited, the token is saved in your browser's local storage.
 
 ---
 
-## Summary of Configuration Changes
+## Summary of Critical Settings
 
-### Configuration File Location
-
-```
-~/.openclaw/openclaw.json
-```
-
-### Critical Configuration Points
-
-| Setting                            | Value                         | Purpose                               |
-| ---------------------------------- | ----------------------------- | ------------------------------------- |
-| `gateway.mode`                     | `local`                       | Gateway runs on localhost             |
-| `gateway.port`                     | `18789`                       | WebSocket port for client connections |
-| `gateway.bind`                     | `loopback`                    | Binds to 127.0.0.1                    |
-| `agents.defaults.model.primary`    | `custom-IP-11434/qwen3.5:35b` | Default model to use                  |
-| `agents.defaults.thinkingDefault`  | `off`                         | Prevents 400 errors on Ollama         |
-| `models.providers.*.apiKey`        | `ollama`                      | API key for custom provider           |
-| `tools.web.search.provider`        | `searxng`                     | Enables SearXNG search                |
-| `tools.web.search.searxng.baseUrl` | `http://IP:8081/Search`       | Your SearXNG endpoint                 |
-
----
-
-## Commands Reference
-
-### Start Gateway (Initial Setup)
-
-```bash
-cd ~/test/claude/openclaw/openclaw
-screen -dmS openclaw pnpm openclaw gateway run
-```
-
-### Reattach to Gateway Session
-
-```bash
-# List sessions
-screen -ls
-
-# Attach to session
-screen -r openclaw
-
-# Detach (Ctrl+A, then D)
-```
-
-### Common CLI Commands
-
-```bash
-# Check gateway status
-pnpm openclaw status
-
-# Send message to agent
-pnpm openclaw agent --agent main --message "Your message here"
-
-# Follow logs
-pnpm openclaw logs --follow
-
-# Check gateway connection
-pnpm openclaw gateway probe
-
-# Run doctor for diagnostics
-pnpm openclaw doctor
-```
-
-### Screen/Tmux Session Management
-
-```bash
-# List screen sessions
-screen -ls
-
-# List tmux sessions (alternative)
-tmux list-sessions
-
-# Attach to session
-screen -r openclaw
-
-# Kill screen session (when done)
-screen -X -S openclaw quit
-
-# Kill tmux session (alternative)
-tmux kill-session -t openclaw
-```
+| Setting                | Value                            | Purpose                                  |
+| ---------------------- | -------------------------------- | ---------------------------------------- |
+| `api`                  | `ollama` OR `openai-completions` | Native vs OpenAI-compatible bridge       |
+| `input`                | `["text", "image"]`              | Required for Vision support              |
+| `compat.supportsTools` | `true`                           | Required for structured tool execution   |
+| `gateway.mode`         | `local`                          | Allows the gateway to start on your host |
 
 ---
 
 ## Troubleshooting
 
-### Error: "No API key found for provider"
+### Tool calls are appearing as plain JSON text
 
-**Solution**: Add `apiKey: "ollama"` to the custom provider configuration in `~/.openclaw/openclaw.json`.
+**Cause**: The model isn't using the structured tool-calling format.
+**Solution**: Ensure `compat.supportsTools: true` is set. If using `gpt-oss:120b`, switch to `api: "openai-completions"` with the `/v1` baseUrl.
 
-### Error: "Gateway not responding"
+### Command 'openclaw' not found
 
-**Solution**:
+**Cause**: The wrapper script isn't in your PATH.
+**Solution**: Re-run the Step 1 wrapper commands and ensure `~/.local/bin` is in your `.bashrc`.
 
-1. Check if gateway process is running: `ps aux | grep openclaw`
-2. Check gateway logs: `pnpm openclaw logs --follow`
-3. Restart gateway: `screen -X -S openclaw quit` then `screen -dmS openclaw pnpm openclaw gateway run`
+### Gateway not starting
 
-### Error: "Command 'gateway' not found"
-
-**Solution**: Use `pnpm openclaw gateway run` instead of `pnpm gateway run`.
-
-### Error: "Required option '-m, --message' not specified"
-
-**Solution**: Use `--message` with `agent`, not `agent message send`. Correct format:
-
-```bash
-pnpm openclaw agent --agent main --message "Your message"
-```
-
----
-
-## Verification Checklist
-
-Before considering the setup complete, verify:
-
-- [ ] OpenClaw repository cloned to `~/test/claude/openclaw/openclaw`
-- [ ] Dependencies installed (`pnpm install` completed successfully)
-- [ ] Project built (`pnpm build` completed successfully)
-- [ ] Configuration file created at `~/.openclaw/openclaw.json`
-- [ ] Custom provider configured with `apiKey: "ollama"`
-- [ ] Ollama server accessible via `curl http://YOUR_OLLAMA_IP:11434/api/tags`
-- [ ] Gateway screen session running (`screen -ls` shows `openclaw`)
-- [ ] Gateway responds on port 18789
-- [ ] `pnpm openclaw status` shows gateway as reachable
-- [ ] `pnpm openclaw agent --agent main --message "test"` returns a response
-
----
-
-## Update Available
-
-Check for available updates:
-
-```bash
-cd ~/test/claude/openclaw/openclaw
-git pull origin main
-pnpm install
-pnpm build
-```
-
----
-
-## Additional Notes
-
-1. **Model Selection**: The setup uses `qwen3.5:35b` as an example. Change the `custom-model-id` during onboard and update the `id` field in the configuration file.
-
-2. **Context Window**: The default context window is 4096 tokens. Update to the correct value for your model (e.g., `128000` for Qwen 3.5).
-
-3. **Reasoning Support**: Set `reasoning: true` only if your model produces chain-of-thought reasoning output.
-
-4. **Security**: Keep the gateway binding to `loopback` for security unless you need external access.
-
-5. **Backup**: Keep a backup of your `~/.openclaw/openclaw.json` configuration file.
+**Cause**: Missing `gateway.mode: "local"`.
+**Solution**: `openclaw config set gateway.mode local`.
