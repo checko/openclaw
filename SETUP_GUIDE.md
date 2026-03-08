@@ -96,40 +96,61 @@ This generates "openclaw-release-VERSION.tar.gz".
 
 ### 2. Install (Production Server)
 
-Transfer the tar archive to your production server, extract it, and follow these steps:
+Transfer the tar archive to your production server and follow these steps for a clean installation:
+
+#### A. Extract the bundle
 
 ```bash
-# Extract the bundle
 tar -xzf openclaw-release-*.tar.gz
+```
 
-# Initialize your configuration from the template
+#### B. Setup environment variables
+
+The installer uses a `.env` file to configure your specific server details. Create it from the provided template:
+
+```bash
 cp .env.example .env
+```
 
-# Edit .env with your specific settings (IPs, tokens, paths)
-# nano .env
+Edit the `.env` file and update the following settings:
 
-# Run the automated installer
+- `OLLAMA_BASE_URL`: The URL of your Ollama server.
+- `SEARXNG_BASE_URL`: The URL of your SearXNG instance.
+- `TELEGRAM_TOKEN`: Your Telegram Bot API token.
+- `INSTALL_DIR`: (Optional) Where to install the binaries.
+
+#### C. Run the installer
+
+```bash
 ./install.sh
 ```
 
-The "install.sh" script automatically:
+**What the installer does:**
 
-- Loads settings from your .env file.
-- Installs production dependencies (handling native module compilation).
-- Sets up the "openclaw" CLI wrapper in ~/.local/bin.
-- Initializes configuration for Ollama, Qwen 3.5, and SearXNG.
-- Installs and starts the "systemd --user" service.
-- Performs a health check to verify the gateway is running.
+- Automatically loads your settings from the `.env` file.
+- Installs production dependencies (including building native modules).
+- Sets up the `openclaw` CLI wrapper in `~/.local/bin`.
+- Initializes the gateway configuration with your Ollama and SearXNG settings.
+- Configures your Telegram bot if a token is provided.
+- Installs and starts the `systemd --user` service.
+- Performs a health check to ensure the gateway is active.
 
 ### 3. Uninstall / Cleanup
 
-If you need to remove the installation or perform a clean reinstall:
+To completely remove OpenClaw from the system:
 
 ```bash
 ./uninstall.sh
 ```
 
-This stops the service, removes the systemd unit, deletes the production binaries, and clears the configuration.
+**What the uninstaller does:**
+
+- Stops and disables the `systemd` service.
+- Removes the `systemd` unit file.
+- Kills any remaining gateway processes.
+- Deletes the production binaries (`~/openclaw-prod`).
+- Deletes the configuration directory (`~/.openclaw`).
+- Removes the CLI wrapper from `~/.local/bin`.
 
 ---
 
