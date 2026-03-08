@@ -122,3 +122,4 @@ dist/protocol.schema.json
 # Synthing
 **/.stfolder/
 *.tar.gz
+release-bundle/
