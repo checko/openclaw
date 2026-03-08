@@ -80,6 +80,7 @@ ${PROD_OPENCLAW} config set tools.web.search.provider "searxng"
 ${PROD_OPENCLAW} config set tools.web.search.searxng.baseUrl "${SEARXNG_BASE_URL}"
 
 # Allow essential tools
+${PROD_OPENCLAW} config set tools.profile null
 ${PROD_OPENCLAW} config set tools.allow '["web_search", "exec"]'
 
 # Configure Telegram
