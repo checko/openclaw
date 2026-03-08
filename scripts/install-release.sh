@@ -79,6 +79,9 @@ ${PROD_OPENCLAW} config set tools.web.search.enabled true
 ${PROD_OPENCLAW} config set tools.web.search.provider "searxng"
 ${PROD_OPENCLAW} config set tools.web.search.searxng.baseUrl "${SEARXNG_BASE_URL}"
 
+# Allow essential tools
+${PROD_OPENCLAW} config set tools.allow '["web_search", "exec"]'
+
 # Configure Telegram
 ${PROD_OPENCLAW} config set channels.telegram.botToken "${TELEGRAM_TOKEN}"
 ${PROD_OPENCLAW} config set channels.telegram.enabled true
