@@ -4,12 +4,12 @@ This document describes the complete setup sequence to deploy OpenClaw with a cu
 
 ## Prerequisites
 
-- **OS**: Linux (tested on Raspberry Pi OS / Ubuntu)
-- **Node.js**: Version 22 or higher
-- **pnpm**: Package manager (v10.x recommended)
-- **Git**: For cloning repositories
-- **systemd**: For background service management
-- **Ollama server**: Running on a reachable network endpoint
+- OS: Linux (tested on Raspberry Pi OS / Ubuntu)
+- Node.js: Version 22 or higher
+- pnpm: Package manager (v10.x recommended)
+- Git: For cloning repositories
+- systemd: For background service management
+- Ollama server: Running on a reachable network endpoint
 
 ## Setup Sequence (Source Install)
 
@@ -32,7 +32,7 @@ echo "node $(pwd)/openclaw.mjs \"\$@\"" >> ~/.local/bin/openclaw
 chmod +x ~/.local/bin/openclaw
 
 # Ensure ~/.local/bin is in your PATH (add this to your .bashrc or .zshrc)
-export PATH="\$HOME/.local/bin:\$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ### Step 2: Clone OpenClaw Repository
@@ -64,7 +64,7 @@ pnpm build
 pnpm ui:build
 ```
 
-**Note**: The CLI and Gateway require the compiled files in the `dist/` directory to function.
+Note: The CLI and Gateway require the compiled files in the "dist/" directory to function.
 
 ### Step 5: Configure Custom Ollama Provider
 
@@ -76,7 +76,7 @@ openclaw setup
 openclaw configure
 ```
 
-Alternatively, you can manually edit the configuration at `~/.openclaw/openclaw.json`.
+Alternatively, you can manually edit the configuration at ~/.openclaw/openclaw.json.
 
 ---
 
@@ -92,23 +92,33 @@ Run the packing script to build the project and create a production tarball:
 bash scripts/pack-release.sh
 ```
 
-This generates `openclaw-release-VERSION.tar.gz`.
+This generates "openclaw-release-VERSION.tar.gz".
 
 ### 2. Install (Production Server)
 
-Transfer the `.tar.gz` to your production server, extract it, and run the automated installer:
+Transfer the tar archive to your production server, extract it, and follow these steps:
 
 ```bash
+# Extract the bundle
 tar -xzf openclaw-release-*.tar.gz
+
+# Initialize your configuration from the template
+cp .env.example .env
+
+# Edit .env with your specific settings (IPs, tokens, paths)
+# nano .env
+
+# Run the automated installer
 ./install.sh
 ```
 
-**The `install.sh` script automatically:**
+The "install.sh" script automatically:
 
+- Loads settings from your .env file.
 - Installs production dependencies (handling native module compilation).
-- Sets up the `openclaw` CLI wrapper in `~/.local/bin`.
-- Initializes a default configuration for **Qwen 3.5 122B** and **SearXNG**.
-- Installs and starts the `systemd --user` service.
+- Sets up the "openclaw" CLI wrapper in ~/.local/bin.
+- Initializes configuration for Ollama, Qwen 3.5, and SearXNG.
+- Installs and starts the "systemd --user" service.
 - Performs a health check to verify the gateway is running.
 
 ### 3. Uninstall / Cleanup
@@ -119,17 +129,17 @@ If you need to remove the installation or perform a clean reinstall:
 ./uninstall.sh
 ```
 
-This stops the service, removes the systemd unit, deletes the production binaries (`~/openclaw-prod`), and clears the configuration (`~/.openclaw`).
+This stops the service, removes the systemd unit, deletes the production binaries, and clears the configuration.
 
 ---
 
 ## Configuration Details
 
-Refine your `~/.openclaw/openclaw.json` for your specific models.
+Refine your ~/.openclaw/openclaw.json for your specific models.
 
 ### 6a. Configure Ollama / Qwen 3.5 (Vision & Tools)
 
-For models like **Qwen 3.5 122B** which support vision and tools natively in Ollama:
+For models like Qwen 3.5 122B which support vision and tools natively in Ollama:
 
 ```json
 {
@@ -162,11 +172,11 @@ For models like **Qwen 3.5 122B** which support vision and tools natively in Oll
 
 ### 6b. Important: Model Compatibility (GPT-OSS 120B)
 
-Some models like **gpt-oss:120b** have specific API requirements:
+Some models like gpt-oss:120b have specific API requirements:
 
-- **API Support**: `gpt-oss:120b` primarily supports the **OpenAI-compatible API** path.
-- **Configuration**: Use `api: "openai-completions"` and point the `baseUrl` to the `/v1` endpoint (e.g., `http://IP:11434/v1`).
-- **Native Ollama API**: Native `/api/chat` may result in plain-text JSON tool calls instead of structured execution.
+- API Support: gpt-oss:120b primarily supports the OpenAI-compatible API path.
+- Configuration: Use api: "openai-completions" and point the baseUrl to the /v1 endpoint.
+- Native Ollama API: Native /api/chat may result in plain-text JSON tool calls instead of structured execution.
 
 ### 6c. Configure SearXNG Search Provider
 
@@ -194,7 +204,7 @@ curl http://YOUR_OLLAMA_IP:11434/api/tags
 
 ### Step 8: Install and Start OpenClaw Gateway
 
-Instead of using `screen`, use the built-in daemon installer for a proper `systemd --user` service:
+Instead of using screen, use the built-in daemon installer for a proper systemd --user service:
 
 ```bash
 # Install the gateway service
@@ -222,7 +232,7 @@ openclaw health
 
 ### Step 10: Test OpenClaw CLI
 
-Always use a `--session-id` for ad-hoc tests to maintain chat history:
+Always use a --session-id for ad-hoc tests to maintain chat history:
 
 ```bash
 openclaw agent --session-id test-chat --message "Hello! What is your model name?"
@@ -232,13 +242,13 @@ openclaw agent --session-id test-chat --message "Hello! What is your model name?
 
 ## Summary of Critical Settings
 
-| Setting                | Value                            | Purpose                                   |
-| ---------------------- | -------------------------------- | ----------------------------------------- |
-| `api`                  | `ollama` OR `openai-completions` | Native vs OpenAI-compatible bridge        |
-| `input`                | `["text", "image"]`              | Required for Vision support               |
-| `compat.supportsTools` | `true`                           | Required for structured tool execution    |
-| `gateway.mode`         | `local`                          | Allows the gateway to start on your host  |
-| `tools.allow`          | `["web_search", "exec"]`         | Required to enable tool access for agents |
+| Setting              | Value                        | Purpose                                   |
+| -------------------- | ---------------------------- | ----------------------------------------- |
+| api                  | ollama OR openai-completions | Native vs OpenAI-compatible bridge        |
+| input                | ["text", "image"]            | Required for Vision support               |
+| compat.supportsTools | true                         | Required for structured tool execution    |
+| gateway.mode         | local                        | Allows the gateway to start on your host  |
+| tools.allow          | ["web_search", "exec"]       | Required to enable tool access for agents |
 
 ---
 
@@ -246,15 +256,15 @@ openclaw agent --session-id test-chat --message "Hello! What is your model name?
 
 ### Tool calls are appearing as plain JSON text
 
-**Cause**: The model isn't using the structured tool-calling format.
-**Solution**: Ensure `compat.supportsTools: true` is set. If using `gpt-oss:120b`, switch to `api: "openai-completions"` with the `/v1` baseUrl.
+Cause: The model isn't using the structured tool-calling format.
+Solution: Ensure compat.supportsTools: true is set. If using gpt-oss:120b, switch to api: "openai-completions" with the /v1 baseUrl.
 
 ### Command 'openclaw' not found
 
-**Cause**: The wrapper script isn't in your PATH.
-**Solution**: Re-run the Step 1 wrapper commands and ensure `~/.local/bin` is in your `.bashrc`.
+Cause: The wrapper script isn't in your PATH.
+Solution: Re-run the Step 1 wrapper commands and ensure ~/.local/bin is in your .bashrc.
 
 ### Gateway not starting
 
-**Cause**: Missing `gateway.mode: "local"`.
-**Solution**: `openclaw config set gateway.mode local`.
+Cause: Missing gateway.mode: "local".
+Solution: openclaw config set gateway.mode local.

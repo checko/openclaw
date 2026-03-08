@@ -6,10 +6,10 @@ VERSION=$(node -e "console.log(require('./package.json').version)")
 RELEASE_NAME="openclaw-release-${VERSION}"
 BUNDLE_DIR="release-bundle"
 
-echo "📦 Preparing release for OpenClaw ${VERSION}..."
+echo "[INFO] Preparing release for OpenClaw ${VERSION}..."
 
 # 1. Clean and build everything
-echo "🏗️ Building project and UI..."
+echo "[INFO] Building project and UI..."
 pnpm build
 pnpm ui:build
 
@@ -18,18 +18,24 @@ rm -rf ${BUNDLE_DIR}
 mkdir -p ${BUNDLE_DIR}
 
 # 3. Create the production tarball (npm/pnpm pack)
-echo "📦 Packing production artifacts..."
+echo "[INFO] Packing production artifacts..."
 PNPM_PACK_FILE=$(pnpm pack --pack-destination ${BUNDLE_DIR} | tail -n 1)
 
-# 4. Copy the scripts into the bundle
+# 4. Copy the scripts and environment template into the bundle
+echo "[INFO] Copying installation scripts..."
 cp scripts/install-release.sh ${BUNDLE_DIR}/install.sh
 cp scripts/uninstall-release.sh ${BUNDLE_DIR}/uninstall.sh
+cp .env.production.example ${BUNDLE_DIR}/.env.example
 chmod +x ${BUNDLE_DIR}/install.sh ${BUNDLE_DIR}/uninstall.sh
 
-# 5. Create a final zip/tar of the bundle
+# 5. Create a final tar of the bundle
+echo "[INFO] Creating final release archive..."
 cd ${BUNDLE_DIR}
 tar -czf ../${RELEASE_NAME}.tar.gz .
 cd ..
 
-echo "✅ Release bundle created: ${RELEASE_NAME}.tar.gz"
-echo "🚀 To install on another machine, copy this file, extract it, and run ./install.sh"
+echo "[SUCCESS] Release bundle created: ${RELEASE_NAME}.tar.gz"
+echo "[INFO] To install on another machine:"
+echo "      1. Copy this file and extract it"
+echo "      2. cp .env.example .env (and edit your settings)"
+echo "      3. ./install.sh"
