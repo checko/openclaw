@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Check prerequisites
+if [ ! -d "node_modules" ]; then
+    echo "[ERROR] node_modules not found. Run 'pnpm install' first."
+    exit 1
+fi
+
 # Configuration
 VERSION=$(node -e "console.log(require('./package.json').version)")
 RELEASE_NAME="openclaw-release-${VERSION}"
