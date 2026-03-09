@@ -1,8 +1,20 @@
 #!/bin/bash
 # OpenClaw Uninstall and Cleanup Script
 
-INSTALL_DIR="${HOME}/openclaw-prod"
-BIN_DIR="${HOME}/.local/bin"
+# Load deployment configuration from deploy.env (preferred) or .env (fallback)
+# This ensures INSTALL_DIR and BIN_DIR match what was used during installation.
+if [ -f deploy.env ]; then
+    set -a
+    source deploy.env
+    set +a
+elif [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+fi
+
+INSTALL_DIR="${INSTALL_DIR:-${HOME}/openclaw-prod}"
+BIN_DIR="${BIN_DIR:-${HOME}/.local/bin}"
 CONFIG_DIR="${HOME}/.openclaw"
 SERVICE_NAME="openclaw-gateway.service"
 

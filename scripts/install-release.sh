@@ -1,23 +1,28 @@
 #!/bin/bash
 set -e
 
-# 1. Load configuration from .env if it exists
-if [ -f .env ]; then
-    echo "[INFO] Loading configuration from .env..."
-    # Source the file
+# 1. Load deployment configuration from deploy.env (preferred) or .env (fallback)
+if [ -f deploy.env ]; then
+    echo "[INFO] Loading deployment configuration from deploy.env..."
+    set -a
+    source deploy.env
+    set +a
+elif [ -f .env ]; then
+    echo "[INFO] Loading deployment configuration from .env..."
     set -a
     source .env
     set +a
 else
-    echo "[WARN] No .env file found. Using default values and environment variables."
+    echo "[WARN] No deploy.env or .env file found. Using default values and environment variables."
+    echo "[WARN] Copy deploy.env.example to deploy.env and edit it before running this script."
 fi
 
-# Defaults (overridden by .env if set)
+# Defaults (overridden by deploy.env / .env if set)
 INSTALL_DIR="${INSTALL_DIR:-${HOME}/openclaw-prod}"
 BIN_DIR="${BIN_DIR:-${HOME}/.local/bin}"
-OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://192.168.145.70:11434}"
+OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://192.168.1.100:11434}"
 QWEN_MODEL_ID="${QWEN_MODEL_ID:-qwen3.5:122b}"
-SEARXNG_BASE_URL="${SEARXNG_BASE_URL:-http://192.168.145.70:8081}"
+SEARXNG_BASE_URL="${SEARXNG_BASE_URL:-http://192.168.1.100:8081}"
 
 echo "[START] Starting OpenClaw Production Installation..."
 
@@ -89,15 +94,15 @@ echo "[INFO] Configuring tool permissions..."
 ${PROD_OPENCLAW} config set tools.profile null
 ${PROD_OPENCLAW} config set tools.allow '["web_search", "exec"]'
 
-if [ -n "${TELEGRAM_TOKEN}" ]; then
+if [ -n "${TELEGRAM_BOT_TOKEN}" ]; then
     echo "[INFO] Configuring Telegram bot..."
-    ${PROD_OPENCLAW} config set channels.telegram.botToken "${TELEGRAM_TOKEN}"
+    ${PROD_OPENCLAW} config set channels.telegram.botToken "${TELEGRAM_BOT_TOKEN}"
     ${PROD_OPENCLAW} config set channels.telegram.enabled true
     ${PROD_OPENCLAW} config set channels.telegram.allowFrom '["*"]'
     ${PROD_OPENCLAW} config set channels.telegram.dmPolicy "open"
     ${PROD_OPENCLAW} config set channels.telegram.groupPolicy "open"
 else
-    echo "[INFO] No TELEGRAM_TOKEN provided. Skipping Telegram configuration."
+    echo "[INFO] No TELEGRAM_BOT_TOKEN provided. Skipping Telegram configuration."
 fi
 
 ${PROD_OPENCLAW} config set gateway.mode "local"

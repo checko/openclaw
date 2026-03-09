@@ -84,6 +84,8 @@ Alternatively, you can manually edit the configuration at ~/.openclaw/openclaw.j
 
 For deploying to production servers without the full source code, use the automated release bundle.
 
+> **Note on `.env` files**: The release bundle uses `deploy.env` for **deployment settings** (server IPs, install paths, bot tokens). This is separate from the application's own `.env` / `.env.example` (used for API keys, gateway tokens, etc.). Do not mix the two.
+
 ### 1. Create the Bundle (Development Machine)
 
 Run the packing script to build the project and create a production tarball:
@@ -92,7 +94,7 @@ Run the packing script to build the project and create a production tarball:
 bash scripts/pack-release.sh
 ```
 
-This generates "openclaw-release-VERSION.tar.gz".
+This generates `openclaw-release-VERSION.tar.gz` containing the packed app, `install.sh`, `uninstall.sh`, and `deploy.env.example`.
 
 ### 2. Install (Production Server)
 
@@ -104,20 +106,20 @@ Transfer the tar archive to your production server and follow these steps for a 
 tar -xzf openclaw-release-*.tar.gz
 ```
 
-#### B. Setup environment variables
+#### B. Set up deployment configuration
 
-The installer uses a `.env` file to configure your specific server details. Create it from the provided template:
+The installer reads your server-specific settings from `deploy.env`. Create it from the provided template:
 
 ```bash
-cp .env.example .env
+cp deploy.env.example deploy.env
 ```
 
-Edit the `.env` file and update the following settings:
+Edit `deploy.env` and update the following settings:
 
 - `OLLAMA_BASE_URL`: The URL of your Ollama server.
 - `SEARXNG_BASE_URL`: The URL of your SearXNG instance.
-- `TELEGRAM_TOKEN`: Your Telegram Bot API token.
-- `INSTALL_DIR`: (Optional) Where to install the binaries.
+- `TELEGRAM_BOT_TOKEN`: Your Telegram Bot API token (optional).
+- `INSTALL_DIR`: (Optional) Where to install the binaries. Default: `~/openclaw-prod`.
 
 #### C. Run the installer
 
@@ -127,11 +129,11 @@ Edit the `.env` file and update the following settings:
 
 **What the installer does:**
 
-- Automatically loads your settings from the `.env` file.
+- Automatically loads your settings from `deploy.env` (falls back to `.env` if not found).
 - Installs production dependencies (including building native modules).
 - Sets up the `openclaw` CLI wrapper in `~/.local/bin`.
 - Initializes the gateway configuration with your Ollama and SearXNG settings.
-- Configures your Telegram bot if a token is provided.
+- Configures your Telegram bot if `TELEGRAM_BOT_TOKEN` is provided.
 - Installs and starts the `systemd --user` service.
 - Performs a health check to ensure the gateway is active.
 
@@ -143,12 +145,14 @@ To completely remove OpenClaw from the system:
 ./uninstall.sh
 ```
 
+Run this from the same directory as your `deploy.env` so the uninstaller uses the same `INSTALL_DIR` and `BIN_DIR` that were used during installation.
+
 **What the uninstaller does:**
 
 - Stops and disables the `systemd` service.
 - Removes the `systemd` unit file.
 - Kills any remaining gateway processes.
-- Deletes the production binaries (`~/openclaw-prod`).
+- Deletes the production binaries (default: `~/openclaw-prod`, or whatever `INSTALL_DIR` is set to).
 - Deletes the configuration directory (`~/.openclaw`).
 - Removes the CLI wrapper from `~/.local/bin`.
 
