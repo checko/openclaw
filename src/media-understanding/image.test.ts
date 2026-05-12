@@ -562,6 +562,34 @@ describe("describeImageWithModel", () => {
       },
       expectedRetryPayload: {},
     },
+    {
+      name: "Qwen openai-completions route",
+      provider: "vllm",
+      model: {
+        api: "openai-completions",
+        provider: "vllm",
+        id: "qwen-vision",
+        input: ["text", "image"],
+        compat: { thinkingFormat: "qwen" },
+      },
+      expectedRetryPayload: {
+        enable_thinking: false,
+      },
+    },
+    {
+      name: "Qwen chat-template openai-completions route",
+      provider: "vllm",
+      model: {
+        api: "openai-completions",
+        provider: "vllm",
+        id: "qwen-vision",
+        input: ["text", "image"],
+        compat: { thinkingFormat: "qwen-chat-template" },
+      },
+      expectedRetryPayload: {
+        chat_template_kwargs: { enable_thinking: false },
+      },
+    },
   ])(
     "retries reasoning-only image responses with reasoning disabled for $name",
     async ({ provider, model, expectedRetryPayload }) => {

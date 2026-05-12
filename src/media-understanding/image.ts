@@ -66,6 +66,30 @@ function removeReasoningInclude(value: unknown): unknown {
   return next.length > 0 ? next : undefined;
 }
 
+function setQwenChatTemplateThinkingDisabled(payload: Record<string, unknown>): void {
+  const existing = payload.chat_template_kwargs;
+  payload.chat_template_kwargs =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? { ...(existing as Record<string, unknown>), enable_thinking: false }
+      : { enable_thinking: false };
+}
+
+function disableOpenAICompletionsThinkingForImageRetry(
+  payload: Record<string, unknown>,
+  model: Model<Api>,
+): void {
+  if (model.api !== "openai-completions") {
+    return;
+  }
+  const thinkingFormat =
+    typeof model.compat?.thinkingFormat === "string" ? model.compat.thinkingFormat : undefined;
+  if (thinkingFormat === "qwen-chat-template") {
+    setQwenChatTemplateThinkingDisabled(payload);
+  } else if (thinkingFormat === "qwen") {
+    payload.enable_thinking = false;
+  }
+}
+
 function disableReasoningForImageRetryPayload(payload: unknown, model: Model<Api>): unknown {
   if (!isRecord(payload)) {
     return undefined;
@@ -84,6 +108,7 @@ function disableReasoningForImageRetryPayload(payload: unknown, model: Model<Api
   if (isNativeResponsesReasoningPayload(model)) {
     next.reasoning = { effort: "none" };
   }
+  disableOpenAICompletionsThinkingForImageRetry(next, model);
   return next;
 }
 
